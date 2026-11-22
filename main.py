@@ -12,7 +12,7 @@ import hashlib
 import os
 import sys
 
-ENTRY_SHA256 = "848c0390e173ceec245fdca1695975e1811b66aac9e94533fb3dfaaf1a7f20a6"
+ENTRY_SHA256 = "85d217366c943cca44bc796223ae8ff99fbeb6d9bb3b84b5059b19db8067df76"
 ENTRY_NAME = "entry.png"
 
 
