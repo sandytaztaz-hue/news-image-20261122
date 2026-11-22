@@ -1,41 +1,51 @@
 #!/usr/bin/env python3
-"""news-image-20261122 entrypoint: copy the shipped broadsheet image to
-the output directory byte-for-byte, verifying its SHA-256 first.
+"""news-image-20261122 entrypoint (revision R3, full-day edition).
 
-Stdlib only. Honors MAKEFUN_OUTPUT_DIR (default /output). The image is
-the entry itself: a 1024x1024 PNG front page for Sunday 22 November 2026,
-drawn in code from 36 verified stories across 7 regions, with 13 original
-flat-colour drawings, a dotted world map with numbered pins, and a DATE
-CHECK box for the big stories that did not happen that day.
+Takes the broadsheet image shipped beside this file (entry.png, drawn by
+render-r3.py from the 36 verified stories in STORIES-R3.md) and places an
+exact copy in the harness output directory. Before copying, it checks the
+shipped file really is the R3 render: PNG magic bytes plus the SHA-256
+recorded below. After copying, it reads the copy back and compares digests,
+so a short or corrupted write fails loudly instead of scoring as the entry.
+Standard library only; no network. Honors MAKEFUN_OUTPUT_DIR, else /output.
 """
 import hashlib
 import os
 import sys
 
-ENTRY_SHA256 = "85d217366c943cca44bc796223ae8ff99fbeb6d9bb3b84b5059b19db8067df76"
 ENTRY_NAME = "entry.png"
+ENTRY_SHA256 = "1a9fd7e061f81a3f8b3f4e126804498eae05f3a0310b707ce61f25e34e109c2d"
+
+
+def _sha256(data):
+    return hashlib.sha256(data).hexdigest()
 
 
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     src = os.path.join(here, ENTRY_NAME)
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    os.makedirs(out_dir, exist_ok=True)
     with open(src, "rb") as f:
         data = f.read()
     if not data.startswith(b"\x89PNG\r\n\x1a\n"):
-        print("entry.png is not a PNG file", file=sys.stderr)
+        print("shipped entry.png is not a PNG file", file=sys.stderr)
         return 1
-    digest = hashlib.sha256(data).hexdigest()
-    if digest != ENTRY_SHA256:
-        print(f"entry.png sha256 mismatch: got {digest}, want {ENTRY_SHA256}",
+    if _sha256(data) != ENTRY_SHA256:
+        print("shipped entry.png is not the R3 render (sha256 mismatch)",
               file=sys.stderr)
         return 1
+    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
+    # The harness runs this program twice and both runs must write the same
+    # bytes, so there is no timestamp, no randomness and no network here.
+    os.makedirs(out_dir, exist_ok=True)
     dst = os.path.join(out_dir, ENTRY_NAME)
     with open(dst, "wb") as f:
         f.write(data)
-    os.chmod(dst, 0o644)
-    print(f"wrote {dst} ({len(data)} bytes, sha256 {digest})")
+    with open(dst, "rb") as f:
+        copied = f.read()
+    if _sha256(copied) != ENTRY_SHA256:
+        print("copied entry.png failed its re-read check", file=sys.stderr)
+        return 1
+    print(f"wrote {dst} ({len(copied)} bytes, sha256 {ENTRY_SHA256})")
     return 0
 
 
